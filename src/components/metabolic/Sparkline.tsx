@@ -4,7 +4,7 @@ import { HISTORY_WINDOW_HOURS } from "@/lib/metabolism/config";
 export function Sparkline({ points }: { points: HistoryPoint[] }) {
   const w = 300;
   const h = 56;
-  const end = points.length ? points[points.length - 1].t : 0;
+  const end = points.length ? (points[points.length - 1]?.t ?? 0) : 0;
   const start = Math.max(0, end - HISTORY_WINDOW_HOURS);
   const span = Math.max(end - start, 0.5);
   const d = points
