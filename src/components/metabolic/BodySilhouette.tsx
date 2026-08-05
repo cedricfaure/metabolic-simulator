@@ -35,8 +35,8 @@ interface Metrics {
 }
 
 const BASE: Record<Gender, Metrics> = {
-  male: { neck: 4.6, shoulder: 15.4, chest: 13.4, waist: 9.6, hip: 11.6, thigh: 10.4, knee: 6.2, calf: 7.0, ankle: 3.6, arm: 4.4, head: 6.6 },
-  female: { neck: 4.0, shoulder: 12.8, chest: 11.6, waist: 8.2, hip: 13.0, thigh: 10.8, knee: 5.8, calf: 6.6, ankle: 3.2, arm: 3.9, head: 6.3 },
+  male: { neck: 4.6, shoulder: 18.4, chest: 13.2, waist: 11.0, hip: 14.0, thigh: 7.0, knee: 4.7, calf: 5.3, ankle: 2.9, arm: 4.0, head: 6.2 },
+  female: { neck: 4.0, shoulder: 15.6, chest: 11.6, waist: 9.6, hip: 14.6, thigh: 7.2, knee: 4.4, calf: 5.0, ankle: 2.7, arm: 3.5, head: 6.0 },
 };
 
 /** Gradual, region-weighted response to body-fat %. Reference physique = 18%. */
@@ -66,41 +66,42 @@ function metricsFor(gender: Gender, bf: number): Metrics {
 /** Head + torso + legs as one smooth closed outline (x mirrored around 50). */
 function bodyPath(m: Metrics): string {
   const C = 50;
+  const legAxis = m.hip * 0.42;
   const right: Pt[] = [
-    [C + m.neck * 0.62, 20.5],
-    [C + m.neck, 24],
-    [C + m.shoulder * 0.62, 27.5],
-    [C + m.shoulder, 33.5],
-    [C + m.shoulder * 0.9, 39],
-    [C + m.chest, 45],
-    [C + m.chest * 0.92, 52],
+    [C + m.neck * 0.6, 20.5],
+    [C + m.neck, 24.5],
+    [C + m.chest * 0.72, 28],
+    [C + m.chest * 1.02, 34],
+    [C + m.chest * 1.0, 40],
+    [C + m.chest, 46],
+    [C + m.chest * 0.9, 53],
     [C + m.waist, 61],
-    [C + m.hip * 0.95, 68],
-    [C + m.hip, 74],
-    [C + m.hip * 0.9, 82],
-    [C + m.thigh, 92],
-    [C + m.thigh * 0.82, 103],
-    [C + m.knee, 112],
-    [C + m.calf, 120],
-    [C + m.ankle, 131],
-    [C + m.ankle * 1.15, 136.5],
+    [C + m.hip * 0.93, 68],
+    [C + m.hip, 75],
+    [C + m.hip * 0.94, 82],
+    [C + legAxis + m.thigh, 90],
+    [C + legAxis * 0.94 + m.thigh * 0.88, 101],
+    [C + legAxis * 0.82 + m.knee, 112],
+    [C + legAxis * 0.78 + m.calf, 120],
+    [C + legAxis * 0.62 + m.ankle, 131],
+    [C + legAxis * 0.62 + m.ankle * 1.3, 136.5],
   ];
   const innerRight: Pt[] = [
     [C + 1.9, 137],
-    [C + 2.2, 131],
-    [C + 2.8, 120],
-    [C + 2.4, 112],
-    [C + 3.0, 100],
-    [C + 2.2, 88],
+    [C + 2.1, 131],
+    [C + 2.7, 120],
+    [C + 2.3, 112],
+    [C + 2.9, 100],
+    [C + 2.1, 88],
   ];
   const mirror = (p: Pt): Pt => [2 * C - p[0], p[1]];
   const pts: Pt[] = [
     ...right,
     ...innerRight,
-    [C, 84.5],
+    [C, 84],
     ...innerRight.map(mirror).reverse(),
     ...right.map(mirror).reverse(),
-    [C - m.neck * 0.62, 20.5],
+    [C - m.neck * 0.6, 20.5],
   ];
   return smoothClosedPath(pts, 0.5);
 }
@@ -113,12 +114,13 @@ function headPath(m: Metrics): string {
 /** One arm hanging beside the torso; side = 1 (right) or -1 (left). */
 function armPath(m: Metrics, side: 1 | -1): string {
   const C = 50;
+  const axis = m.shoulder - m.arm;
   const spine: { x: number; y: number; w: number }[] = [
-    { x: m.shoulder * 0.74, y: 33.5, w: m.arm * 1.1 },
-    { x: m.chest + m.arm * 0.9, y: 45, w: m.arm * 0.92 },
-    { x: m.waist + m.arm * 1.25, y: 59, w: m.arm * 0.78 },
-    { x: m.hip * 0.92 + m.arm * 0.85, y: 73, w: m.arm * 0.64 },
-    { x: m.hip * 0.88 + m.arm * 0.8, y: 86, w: m.arm * 0.5 },
+    { x: axis * 0.86, y: 33, w: m.arm * 1.02 },
+    { x: axis, y: 43, w: m.arm * 0.92 },
+    { x: axis * 0.99, y: 56, w: m.arm * 0.76 },
+    { x: axis * 0.96, y: 70, w: m.arm * 0.6 },
+    { x: axis * 0.92, y: 84, w: m.arm * 0.52 },
   ];
   const outer: Pt[] = spine.map((s) => [C + side * (s.x + s.w), s.y]);
   const inner: Pt[] = spine.map((s) => [C + side * (s.x - s.w), s.y]);
