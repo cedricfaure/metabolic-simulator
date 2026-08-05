@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TIME_SCALES, type TimeScale } from "@/lib/metabolism/config";
-import { bodyFatPercent, bodyScale, burnRate, type FeedInput } from "@/lib/metabolism/engine";
+import { bodyFatPercent, burnRate, type FeedInput } from "@/lib/metabolism/engine";
 import type { useMetabolismSimulation } from "@/hooks/useMetabolismSimulation";
 import { BodySilhouette } from "./BodySilhouette";
 import { SignalGauge } from "./SignalGauge";
@@ -87,11 +87,6 @@ export function Dashboard({ sim }: { sim: Sim }) {
 
   const ketosisTrend = useTrend(state?.K ?? 0);
   const autoTrend = useTrend(state?.Auto ?? 0);
-
-  const scale = useMemo(
-    () => (profile && state ? bodyScale(state.Fat, profile.Fat0, profile.LBM) : 1),
-    [profile, state],
-  );
 
   if (!profile || !state) return null;
   const ratio = state.G / profile.Gcap;
