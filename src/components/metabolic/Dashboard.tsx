@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Play, RotateCcw, Save, Undo2, UtensilsCrossed, Activity } from "lucide-react";
+import { Pause, Play, RotateCcw, Save, Undo2, UtensilsCrossed, Activity, FastForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TIME_SCALES, type TimeScale } from "@/lib/metabolism/config";
-import { bodyScale, type FeedInput } from "@/lib/metabolism/engine";
+import { bodyFatPercent, bodyScale, burnRate, type FeedInput } from "@/lib/metabolism/engine";
 import type { useMetabolismSimulation } from "@/hooks/useMetabolismSimulation";
 import { BodySilhouette } from "./BodySilhouette";
 import { SignalGauge } from "./SignalGauge";
+import { BurnRateGauge } from "./BurnRateGauge";
 import { Sparkline } from "./Sparkline";
 import { FeedSheet } from "./FeedSheet";
 import { MoveSheet } from "./MoveSheet";
@@ -88,12 +89,14 @@ export function Dashboard({ sim }: { sim: Sim }) {
   const autoTrend = useTrend(state?.Auto ?? 0);
 
   const scale = useMemo(
-    () => (profile && state ? bodyScale(state.Fat, profile.Fat0) : 1),
+    () => (profile && state ? bodyScale(state.Fat, profile.Fat0, profile.LBM) : 1),
     [profile, state],
   );
 
   if (!profile || !state) return null;
   const ratio = state.G / profile.Gcap;
+  const bf = bodyFatPercent(state.Fat, profile.LBM);
+  const burn = burnRate(state, profile);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
@@ -137,10 +140,11 @@ export function Dashboard({ sim }: { sim: Sim }) {
             overflowPulse={state.overflowEvent}
             reducedMotion={reducedMotion}
           />
-          <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <dl className="mt-3 grid grid-cols-4 gap-2 text-center">
             {[
               ["Glycogen", `${Math.round(state.G)} kcal`],
               ["Fat mass", `${state.Fat.toFixed(2)} kg`],
+              ["Body fat", `${bf.toFixed(1)}%`],
               ["Δ Fat", `${(state.Fat - profile.Fat0 >= 0 ? "+" : "") + (state.Fat - profile.Fat0).toFixed(2)} kg`],
             ].map(([k, v]) => (
               <div key={k} className="rounded-lg border border-border bg-background/40 py-2">
@@ -183,6 +187,14 @@ export function Dashboard({ sim }: { sim: Sim }) {
                 </Button>
               ))}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full"
+              onClick={() => sim.skipHours(24)}
+            >
+              <FastForward className="h-4 w-4" /> Fast forward 24h
+            </Button>
             {state.activeActivity && (
               <p className="numeric mt-3 text-xs text-primary">
                 Activity running — {Math.ceil(state.activeActivity.remainingMinutes)} min left at{" "}
@@ -273,6 +285,12 @@ export function Dashboard({ sim }: { sim: Sim }) {
               />
             </CollapsibleContent>
           </Collapsible>
+
+          <BurnRateGauge
+            restingPerHour={burn.restingPerHour}
+            activityPerHour={burn.activityPerHour}
+            basalPerDay={profile.BMR}
+          />
 
           <div className="rounded-xl border border-border bg-card/50 p-4">
             <div className="mb-1 flex items-center gap-1">
