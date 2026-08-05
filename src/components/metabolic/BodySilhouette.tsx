@@ -1,43 +1,179 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Gender } from "@/lib/metabolism/engine";
 
-const MALE_PATH =
-  "M50 4c5.5 0 9.5 4.3 9.5 9.8S55.5 24 50 24s-9.5-4.7-9.5-10.2S44.5 4 50 4zM33 28c3.5-2 10-3.5 17-3.5S63.5 26 67 28c6 3.4 9 9 10 16l3.5 22c.6 4-1.4 6.7-4.6 7.2-3.2.5-5.7-1.4-6.4-5.2L67 55v27l4 44c.5 5-2.2 8-6.3 8-3.7 0-6-2.3-6.6-6.6L54 92h-8l-4.1 35.4c-.5 4.3-2.9 6.6-6.6 6.6-4.1 0-6.8-3-6.3-8l4-44V55l-2.5 13c-.7 3.8-3.2 5.7-6.4 5.2C20.9 72.7 18.9 70 19.5 66L23 44c1-7 4-12.6 10-16z";
+type Pt = [number, number];
 
-const FEMALE_PATH =
-  "M50 4c5.3 0 9.2 4.3 9.2 9.8S55.3 24 50 24s-9.2-4.7-9.2-10.2S44.7 4 50 4zM35 28c3.2-2 9.5-3.5 15-3.5S62.8 26 66 28c5.6 3.3 8.4 9 9.4 16l3.2 21c.6 4-1.3 6.7-4.4 7.2-3.1.5-5.5-1.4-6.2-5.2L66 54l1.8 20.5c.3 3.4-1.4 5.5-4.6 5.5h-1.4l3.1 45.5c.3 4.6-2.2 7.5-6.1 7.5-3.5 0-5.8-2.3-6.3-6.7L50 94l-2.5 32.3c-.5 4.4-2.8 6.7-6.3 6.7-3.9 0-6.4-2.9-6.1-7.5L38.2 80h-1.4c-3.2 0-4.9-2.1-4.6-5.5L34 54l-2 13c-.7 3.8-3.1 5.7-6.2 5.2-3.1-.5-5-3.2-4.4-7.2l3.2-21c1-7 3.8-12.7 9.4-16z";
+/** Catmull-Rom → cubic bezier, closed loop. */
+function smoothClosedPath(pts: Pt[], tension = 0.5): string {
+  const n = pts.length;
+  const p = (i: number): Pt => pts[((i % n) + n) % n] as Pt;
+  let d = `M${p(0)[0].toFixed(2)},${p(0)[1].toFixed(2)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = p(i - 1);
+    const p1 = p(i);
+    const p2 = p(i + 1);
+    const p3 = p(i + 2);
+    const c1: Pt = [p1[0] + ((p2[0] - p0[0]) / 6) * tension * 2, p1[1] + ((p2[1] - p0[1]) / 6) * tension * 2];
+    const c2: Pt = [p2[0] - ((p3[0] - p1[0]) / 6) * tension * 2, p2[1] - ((p3[1] - p1[1]) / 6) * tension * 2];
+    d += ` C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d + "Z";
+}
+
+interface Metrics {
+  neck: number;
+  shoulder: number;
+  chest: number;
+  waist: number;
+  hip: number;
+  thigh: number;
+  knee: number;
+  calf: number;
+  ankle: number;
+  arm: number;
+  head: number;
+}
+
+const BASE: Record<Gender, Metrics> = {
+  male: { neck: 4.6, shoulder: 18.4, chest: 13.2, waist: 11.0, hip: 14.0, thigh: 7.0, knee: 4.7, calf: 5.3, ankle: 2.9, arm: 4.0, head: 6.2 },
+  female: { neck: 4.0, shoulder: 15.6, chest: 11.6, waist: 9.6, hip: 14.6, thigh: 7.2, knee: 4.4, calf: 5.0, ankle: 2.7, arm: 3.5, head: 6.0 },
+};
+
+/** Gradual, region-weighted response to body-fat %. Reference physique = 18%. */
+function metricsFor(gender: Gender, bf: number): Metrics {
+  const b = BASE[gender];
+  const d = (bf - 18) / 100;
+  const g = (k: number) => 1 + d * k;
+  // Female fat deposits more on hips/thighs, male more on waist.
+  const waistK = gender === "male" ? 2.5 : 1.9;
+  const hipK = gender === "male" ? 1.3 : 2.0;
+  const thighK = gender === "male" ? 1.1 : 1.8;
+  return {
+    neck: b.neck * g(0.5),
+    shoulder: b.shoulder * g(0.45),
+    chest: b.chest * g(1.15),
+    waist: b.waist * g(waistK),
+    hip: b.hip * g(hipK),
+    thigh: b.thigh * g(thighK),
+    knee: b.knee * g(0.4),
+    calf: b.calf * g(0.6),
+    ankle: b.ankle * g(0.25),
+    arm: b.arm * g(1.0),
+    head: b.head,
+  };
+}
+
+/** Head + torso + legs as one smooth closed outline (x mirrored around 50). */
+function bodyPath(m: Metrics): string {
+  const C = 50;
+  const legAxis = m.hip * 0.42;
+  const right: Pt[] = [
+    [C + m.neck * 0.6, 19],
+    [C + m.neck, 22.5],
+    [C + m.chest * 0.72, 25.5],
+    [C + m.chest * 1.02, 31],
+    [C + m.chest * 1.0, 36],
+    [C + m.chest, 41],
+    [C + m.chest * 0.88, 47],
+    [C + m.waist, 54],
+    [C + m.hip * 0.93, 60],
+    [C + m.hip, 67],
+    [C + m.hip * 0.95, 74],
+    [C + legAxis + m.thigh, 84],
+    [C + legAxis * 0.94 + m.thigh * 0.86, 96],
+    [C + legAxis * 0.82 + m.knee, 108],
+    [C + legAxis * 0.78 + m.calf, 117],
+    [C + legAxis * 0.62 + m.ankle, 131],
+    [C + legAxis * 0.62 + m.ankle * 1.3, 136.5],
+  ];
+  const innerRight: Pt[] = [
+    [C + 1.9, 137],
+    [C + 2.1, 131],
+    [C + 2.7, 117],
+    [C + 2.3, 108],
+    [C + 2.9, 94],
+    [C + 2.0, 82],
+  ];
+  const mirror = (p: Pt): Pt => [2 * C - p[0], p[1]];
+  const pts: Pt[] = [
+    ...right,
+    ...innerRight,
+    [C, 77],
+    ...innerRight.map(mirror).reverse(),
+    ...right.map(mirror).reverse(),
+    [C - m.neck * 0.6, 19],
+  ];
+  return smoothClosedPath(pts, 0.5);
+}
+
+function headPath(m: Metrics): string {
+  const C = 50;
+  return `M${C},${4.5}a${m.head},${m.head * 1.22} 0 1 0 0.01,0Z`;
+}
+
+/** One arm hanging beside the torso; side = 1 (right) or -1 (left). */
+function armPath(m: Metrics, side: 1 | -1): string {
+  const C = 50;
+  const axis = m.shoulder - m.arm;
+  const spine: { x: number; y: number; w: number }[] = [
+    { x: axis * 0.86, y: 30, w: m.arm * 1.02 },
+    { x: axis, y: 39, w: m.arm * 0.92 },
+    { x: axis * 0.99, y: 50, w: m.arm * 0.76 },
+    { x: axis * 0.96, y: 62, w: m.arm * 0.6 },
+    { x: axis * 0.92, y: 74, w: m.arm * 0.52 },
+  ];
+  const outer: Pt[] = spine.map((s) => [C + side * (s.x + s.w), s.y]);
+  const inner: Pt[] = spine.map((s) => [C + side * (s.x - s.w), s.y]);
+  return smoothClosedPath([...outer, ...inner.reverse()], 0.5);
+}
 
 interface Props {
   gender: Gender;
   fillRatio: number;
-  scale: number;
+  bodyFat: number;
+  baseBodyFat: number;
   overflowPulse: boolean;
   reducedMotion: boolean;
 }
 
-export function BodySilhouette({ gender, fillRatio, scale, overflowPulse, reducedMotion }: Props) {
+export function BodySilhouette({
+  gender,
+  fillRatio,
+  bodyFat,
+  baseBodyFat,
+  overflowPulse,
+  reducedMotion,
+}: Props) {
   const [pulseKey, setPulseKey] = useState(0);
   useEffect(() => {
     if (overflowPulse && !reducedMotion) setPulseKey((k) => k + 1);
   }, [overflowPulse, reducedMotion]);
 
   const pct = Math.round(fillRatio * 100);
-  const path = gender === "female" ? FEMALE_PATH : MALE_PATH;
+
+  const shape = useMemo(() => {
+    const m = metricsFor(gender, bodyFat);
+    return { body: bodyPath(m), head: headPath(m), armR: armPath(m, 1), armL: armPath(m, -1) };
+  }, [gender, bodyFat]);
+
+  const ghost = useMemo(() => {
+    const m = metricsFor(gender, baseBodyFat);
+    return { body: bodyPath(m), head: headPath(m), armR: armPath(m, 1), armL: armPath(m, -1) };
+  }, [gender, baseBodyFat]);
+
+  const ghostVisible = Math.abs(bodyFat - baseBodyFat) > 0.15;
 
   return (
     <div
       className="relative flex items-center justify-center"
       role="img"
-      aria-label={`Body energy gauge, glycogen ${pct} percent full, body mass scale ${scale.toFixed(2)}`}
+      aria-label={`Body composition figure, glycogen ${pct} percent full, body fat ${bodyFat.toFixed(1)} percent versus starting ${baseBodyFat.toFixed(1)} percent`}
     >
       <svg
         key={pulseKey}
-        viewBox="0 0 100 140"
+        viewBox="0 0 100 144"
         className="h-[52vh] max-h-[460px] w-auto"
         style={{
-          transform: `scaleX(${scale}) scaleY(${1 + (scale - 1) * 0.35})`,
-          transformOrigin: "50% 100%",
-          transition: reducedMotion ? "none" : "transform 1200ms cubic-bezier(.33,1,.68,1)",
           animation: overflowPulse && !reducedMotion ? "var(--animate-pulse-glow)" : undefined,
         }}
       >
@@ -47,28 +183,47 @@ export function BodySilhouette({ gender, fillRatio, scale, overflowPulse, reduce
             <stop offset="100%" stopColor="var(--energy)" />
           </linearGradient>
           <clipPath id="bodyClip">
-            <path d={path} />
+            <path d={shape.head} />
+            <path d={shape.body} />
+            <path d={shape.armR} />
+            <path d={shape.armL} />
           </clipPath>
         </defs>
 
+        {/* Starting-shape ghost */}
         <g
-          style={{
-            transform: `translate(50px, 78px) scaleX(${1 + (scale - 1) * 0.75}) translate(-50px, -78px)`,
-            transition: reducedMotion ? "none" : "transform 1200ms cubic-bezier(.33,1,.68,1)",
-          }}
+          opacity={ghostVisible ? 0.45 : 0}
+          style={{ transition: reducedMotion ? "none" : "opacity 600ms ease" }}
         >
-        <path d={path} fill="var(--surface)" stroke="var(--border)" strokeWidth="0.8" />
+          {[ghost.head, ghost.body, ghost.armR, ghost.armL].map((d, i) => (
+            <path
+              key={i}
+              d={d}
+              fill="var(--muted-foreground)"
+              fillOpacity="0.07"
+              stroke="var(--muted-foreground)"
+              strokeOpacity="0.55"
+              strokeWidth="0.7"
+              strokeDasharray="2.5 2"
+            />
+          ))}
+        </g>
+
+        {/* Current shape */}
+        {[shape.head, shape.body, shape.armR, shape.armL].map((d, i) => (
+          <path key={i} d={d} fill="var(--surface)" stroke="var(--border)" strokeWidth="0.8" />
+        ))}
 
         <g clipPath="url(#bodyClip)">
           <rect
             x="0"
-            y={140 - fillRatio * 140}
+            y={144 - fillRatio * 144}
             width="100"
-            height={fillRatio * 140}
+            height={fillRatio * 144}
             fill="url(#energyFill)"
             style={{ transition: reducedMotion ? "none" : "y 400ms linear, height 400ms linear" }}
           />
-          {Array.from({ length: 13 }).map((_, i) => (
+          {Array.from({ length: 14 }).map((_, i) => (
             <line
               key={i}
               x1="0"
@@ -82,14 +237,16 @@ export function BodySilhouette({ gender, fillRatio, scale, overflowPulse, reduce
           ))}
         </g>
 
-        <path
-          d={path}
-          fill="none"
-          stroke="var(--energy)"
-          strokeOpacity="0.5"
-          strokeWidth="0.9"
-        />
-        </g>
+        {[shape.head, shape.body, shape.armR, shape.armL].map((d, i) => (
+          <path
+            key={i}
+            d={d}
+            fill="none"
+            stroke="var(--energy)"
+            strokeOpacity="0.5"
+            strokeWidth="0.9"
+          />
+        ))}
       </svg>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center">
