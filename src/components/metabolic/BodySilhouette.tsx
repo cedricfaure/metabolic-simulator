@@ -6,7 +6,7 @@ type Pt = [number, number];
 /** Catmull-Rom → cubic bezier, closed loop. */
 function smoothClosedPath(pts: Pt[], tension = 0.5): string {
   const n = pts.length;
-  const p = (i: number) => pts[(i + n) % n];
+  const p = (i: number): Pt => pts[((i % n) + n) % n] as Pt;
   let d = `M${p(0)[0].toFixed(2)},${p(0)[1].toFixed(2)}`;
   for (let i = 0; i < n; i++) {
     const p0 = p(i - 1);
