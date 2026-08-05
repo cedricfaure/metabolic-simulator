@@ -37,7 +37,7 @@ export function BodySilhouette({ gender, fillRatio, scale, overflowPulse, reduce
         style={{
           transform: `scaleX(${scale}) scaleY(${1 + (scale - 1) * 0.35})`,
           transformOrigin: "50% 100%",
-          transition: reducedMotion ? "none" : "transform 600ms cubic-bezier(.22,1,.36,1)",
+          transition: reducedMotion ? "none" : "transform 1200ms cubic-bezier(.33,1,.68,1)",
           animation: overflowPulse && !reducedMotion ? "var(--animate-pulse-glow)" : undefined,
         }}
       >
@@ -51,6 +51,12 @@ export function BodySilhouette({ gender, fillRatio, scale, overflowPulse, reduce
           </clipPath>
         </defs>
 
+        <g
+          style={{
+            transform: `translate(50px, 78px) scaleX(${1 + (scale - 1) * 0.75}) translate(-50px, -78px)`,
+            transition: reducedMotion ? "none" : "transform 1200ms cubic-bezier(.33,1,.68,1)",
+          }}
+        >
         <path d={path} fill="var(--surface)" stroke="var(--border)" strokeWidth="0.8" />
 
         <g clipPath="url(#bodyClip)">
@@ -83,6 +89,7 @@ export function BodySilhouette({ gender, fillRatio, scale, overflowPulse, reduce
           strokeOpacity="0.5"
           strokeWidth="0.9"
         />
+        </g>
       </svg>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center">
