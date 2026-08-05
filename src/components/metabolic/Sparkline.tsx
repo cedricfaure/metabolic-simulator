@@ -17,8 +17,7 @@ export function Sparkline({ points }: { points: HistoryPoint[] }) {
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="uppercase tracking-widest">Energy history</span>
+      <div className="mb-1 flex justify-end text-xs text-muted-foreground">
         <span className="numeric">last {Math.min(HISTORY_WINDOW_HOURS, Math.ceil(span))}h</span>
       </div>
       <svg
