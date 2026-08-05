@@ -136,7 +136,8 @@ export function Dashboard({ sim }: { sim: Sim }) {
           <BodySilhouette
             gender={profile.gender}
             fillRatio={ratio}
-            scale={scale}
+            bodyFat={bf}
+            baseBodyFat={profile.bodyfatPct}
             overflowPulse={state.overflowEvent}
             reducedMotion={reducedMotion}
           />
