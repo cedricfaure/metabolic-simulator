@@ -114,11 +114,11 @@ function headPath(m: Metrics): string {
 function armPath(m: Metrics, side: 1 | -1): string {
   const C = 50;
   const spine: { x: number; y: number; w: number }[] = [
-    { x: m.shoulder * 0.72, y: 33, w: m.arm * 1.05 },
-    { x: m.shoulder * 0.9, y: 44, w: m.arm },
-    { x: m.shoulder * 0.9, y: 58, w: m.arm * 0.82 },
-    { x: m.shoulder * 0.84, y: 72, w: m.arm * 0.72 },
-    { x: m.shoulder * 0.8, y: 86, w: m.arm * 0.55 },
+    { x: m.shoulder * 0.74, y: 33.5, w: m.arm * 1.1 },
+    { x: m.chest + m.arm * 0.9, y: 45, w: m.arm * 0.92 },
+    { x: m.waist + m.arm * 1.25, y: 59, w: m.arm * 0.78 },
+    { x: m.hip * 0.92 + m.arm * 0.85, y: 73, w: m.arm * 0.64 },
+    { x: m.hip * 0.88 + m.arm * 0.8, y: 86, w: m.arm * 0.5 },
   ];
   const outer: Pt[] = spine.map((s) => [C + side * (s.x + s.w), s.y]);
   const inner: Pt[] = spine.map((s) => [C + side * (s.x - s.w), s.y]);
