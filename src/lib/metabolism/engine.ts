@@ -238,8 +238,34 @@ export function simulate(
   return sawOverflow ? { ...s, overflowEvent: true } : s;
 }
 
-/** §10 — visual body scale. */
-export function bodyScale(Fat: number, Fat0: number): number {
-  const dFat = Fat - Fat0;
-  return clamp(1 + 0.15 * Math.log(1 + Math.max(0, dFat) / 5), 1, 1.6);
+/** Current body-fat percentage from live fat mass and (constant) lean mass. */
+export function bodyFatPercent(Fat: number, LBM: number): number {
+  const total = Fat + LBM;
+  return total > 0 ? (Fat / total) * 100 : 0;
+}
+
+/**
+ * §10 — visual body scale, driven gradually and symmetrically by body-fat %.
+ * Below the starting body fat the silhouette slims down; above it, it widens.
+ */
+export function bodyScale(Fat: number, Fat0: number, LBM?: number): number {
+  if (LBM === undefined) {
+    const dFat = Fat - Fat0;
+    return clamp(1 + 0.15 * Math.log(1 + Math.max(0, dFat) / 5), 1, 1.6);
+  }
+  const bf = bodyFatPercent(Fat, LBM);
+  const bf0 = bodyFatPercent(Fat0, LBM);
+  return clamp(1 + (bf - bf0) * 0.022, 0.82, 1.6);
+}
+
+/** Instantaneous total energy burn in kcal/h (resting + activity). */
+export function burnRate(
+  state: SimState,
+  profile: Profile,
+  config: SimConfig = CONFIG,
+): { restingPerHour: number; activityPerHour: number; totalPerHour: number } {
+  const restingPerHour =
+    state.K > 30 ? profile.BMR_hr * config.ketosisBmrDiscount : profile.BMR_hr;
+  const activityPerHour = state.activeActivity ? state.activeActivity.kcalPerHour : 0;
+  return { restingPerHour, activityPerHour, totalPerHour: restingPerHour + activityPerHour };
 }
