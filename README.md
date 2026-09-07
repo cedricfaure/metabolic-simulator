@@ -1,8 +1,8 @@
 # Metabolic Simulator
 
-Prompt for Claude Code / Lovable (functional build) — self-contained
+(functional build) — self-contained
 
-Build a responsive, client-side web app: "Metabolic Gauge" — a real-time simulation
+POC for a Responsive, client-side web app: "Metabolic Gauge" — a real-time simulation
 of human metabolism visualized as an animated body silhouette / energy gauge.
 
 This document is fully self-contained: all formulas, constants, and behavior rules
@@ -311,16 +311,6 @@ A working single-page app matching the screens in §12, with all interactive
 functionality from §13, built on the exact formulas in §4–§10, with tunable
 constants centralized in `config.ts` and the simulation engine unit-tested per
 §15.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/323f774d-d288-465d-8691-3b43b443d03b).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
