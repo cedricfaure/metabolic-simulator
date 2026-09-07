@@ -290,6 +290,15 @@ export function Dashboard({ sim }: { sim: Sim }) {
             </CollapsibleContent>
           </Collapsible>
 
+          <ShapeControls
+            tuning={tuning}
+            onTuningChange={setTuning}
+            showRegions={showRegions}
+            onShowRegionsChange={setShowRegions}
+          />
+
+
+
           <BurnRateGauge
             restingPerHour={burn.restingPerHour}
             activityPerHour={burn.activityPerHour}
