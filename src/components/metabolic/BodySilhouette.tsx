@@ -39,15 +39,26 @@ const BASE: Record<Gender, Metrics> = {
   female: { neck: 4.0, shoulder: 15.6, chest: 11.6, waist: 9.6, hip: 14.6, thigh: 7.2, knee: 4.4, calf: 5.0, ankle: 2.7, arm: 3.5, head: 6.0 },
 };
 
+export interface ShapeTuning {
+  /** Overall fat-to-width mapping strength (1 = default). */
+  strength: number;
+  /** Extra weighting of waist response. */
+  waistWeight: number;
+  /** Extra weighting of hip/thigh response. */
+  hipWeight: number;
+}
+
+export const DEFAULT_TUNING: ShapeTuning = { strength: 1, waistWeight: 1, hipWeight: 1 };
+
 /** Gradual, region-weighted response to body-fat %. Reference physique = 18%. */
-function metricsFor(gender: Gender, bf: number): Metrics {
+function metricsFor(gender: Gender, bf: number, t: ShapeTuning = DEFAULT_TUNING): Metrics {
   const b = BASE[gender];
-  const d = (bf - 18) / 100;
+  const d = ((bf - 18) / 100) * t.strength;
   const g = (k: number) => 1 + d * k;
   // Female fat deposits more on hips/thighs, male more on waist.
-  const waistK = gender === "male" ? 2.5 : 1.9;
-  const hipK = gender === "male" ? 1.3 : 2.0;
-  const thighK = gender === "male" ? 1.1 : 1.8;
+  const waistK = (gender === "male" ? 2.5 : 1.9) * t.waistWeight;
+  const hipK = (gender === "male" ? 1.3 : 2.0) * t.hipWeight;
+  const thighK = (gender === "male" ? 1.1 : 1.8) * t.hipWeight;
   return {
     neck: b.neck * g(0.5),
     shoulder: b.shoulder * g(0.45),
@@ -62,6 +73,7 @@ function metricsFor(gender: Gender, bf: number): Metrics {
     head: b.head,
   };
 }
+
 
 /** Head + torso + legs as one smooth closed outline (x mirrored around 50). */
 function bodyPath(m: Metrics): string {
