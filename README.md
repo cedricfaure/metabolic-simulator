@@ -10,18 +10,14 @@ needed to implement the simulation engine are specified below. Do not infer or
 substitute alternative physiology formulas — implement exactly as written, with the
 tunable constants centralized in one config file.
 
-═══════════════════════════════════════════════════════════════
 1. STACK
-═══════════════════════════════════════════════════════════════
 - React + TypeScript, Tailwind for styling, Framer Motion (or CSS transitions) for
   the gauge fill and body-expansion animation.
 - Client-side only: all state in React state/useReducer. No backend.
 - Optional (see §7): persist session to localStorage so a refresh doesn't lose
   progress — implement as an explicit opt-in, not silent.
 
-═══════════════════════════════════════════════════════════════
 2. USER PROFILE & DERIVED CONSTANTS
-═══════════════════════════════════════════════════════════════
 Inputs collected at onboarding: gender (male/female), height (cm), weight (kg),
 bodyfat (%).
 
@@ -35,9 +31,7 @@ Derived once, stored in a `profile` object:
 | BMR_hr (kcal/hour) | `BMR / 24` |
 | Glycogen capacity, `Gcap` (kcal) | `5 × LBM` |
 
-═══════════════════════════════════════════════════════════════
 3. SIMULATION STATE
-═══════════════════════════════════════════════════════════════
 | Variable | Meaning | Bounds | Init |
 |---|---|---|---|
 | `G` | Glycogen store (kcal) | `[0, Gcap]` (overflow handled separately, see §5) | `Gcap` |
@@ -77,9 +71,7 @@ Config constants (centralize in `config.ts`, all tunable):
 | `autophagySuppressionFactor` | 0.3 (multiply Auto on qualifying feed) | Autophagy |
 | `FatFloorFraction` | 0.03 (of weight) | Floor / deficit dampening |
 
-═══════════════════════════════════════════════════════════════
 4. DIGESTION (absorption kinetics)
-═══════════════════════════════════════════════════════════════
 On a confirmed Feed action with grams (carb_g, protein_g, fat_g):
 
 Intake_carb = carb_g × kcal_per_g_carb
@@ -103,9 +95,7 @@ D_x -= absorbed_x
 AbsorptionRate_kcal_per_tick = absorbed_carb + absorbed_protein + absorbed_fat
 
 
-═══════════════════════════════════════════════════════════════
 5. CORE ENERGY BALANCE (per tick, dt in hours)
-═══════════════════════════════════════════════════════════════
 
 ActivityRate = activeActivity ? activeActivity.kcalPerHour : 0
 NetFlow = (AbsorptionRate_kcal_per_tick / dt) − BMR_hr_effective − ActivityRate
@@ -137,9 +127,7 @@ G = clamp(G_new, 0, Gcap)
 
 `hoursSinceLastFeed += dt` every tick.
 
-═══════════════════════════════════════════════════════════════
 6. ACTIVITY ("Move")
-═══════════════════════════════════════════════════════════════
 On confirmed Move action with `durationMinutes` and `totalKcal`:
 
 kcalPerHour = totalKcal / (durationMinutes / 60)
@@ -162,9 +150,7 @@ activeActivity.remainingMinutes -= dt × 60
 if activeActivity.remainingMinutes <= 0: activeActivity = null
 
 
-═══════════════════════════════════════════════════════════════
 7. KETOSIS (hidden gauge)
-═══════════════════════════════════════════════════════════════
 
 if (G/Gcap < ketosisGlycogenThreshold) and (hoursSinceLastFeed > ketosisFastingDelayHours):
 dK = k1 × (ketosisGlycogenThreshold − G/Gcap) × dt
@@ -174,9 +160,7 @@ dK = −k2 × K × dt
 K = clamp(K + dK, 0, 100)
 
 
-═══════════════════════════════════════════════════════════════
 8. AUTOPHAGY (hidden gauge)
-═══════════════════════════════════════════════════════════════
 
 if G/Gcap < autophagyGlycogenThreshold:
 dAuto = a1 × max(0, hoursSinceLastFeed − autophagyFastingDelayHours) × dt
@@ -189,10 +173,7 @@ Auto = clamp(Auto + dAuto, 0, 100)
 if lastMealKcal > autophagySuppressionMealKcal:
 Auto *= autophagySuppressionFactor
 
-
-═══════════════════════════════════════════════════════════════
 9. FAT FLOOR (deficit dampening)
-═══════════════════════════════════════════════════════════════
 
 FatFloor = FatFloorFraction × weight // ~3% of bodyweight, essential fat
 
@@ -203,10 +184,7 @@ if Fat <= FatFloor × 1.1:
 deficitDampening = clamp((Fat − FatFloor) / (FatFloor × 0.1), 0, 1)
 // multiply any further Fat-depleting delta by deficitDampening
 
-
-═══════════════════════════════════════════════════════════════
 10. BODY EXPANSION (visual mapping)
-═══════════════════════════════════════════════════════════════
 
 ΔFat = Fat − Fat0
 bodyScale = clamp(1 + 0.15 × ln(1 + max(0, ΔFat)/5), 1, 1.6)
@@ -215,9 +193,7 @@ Recompute every tick; drive the silhouette's scale transform. On a tick where
 `overflowEvent === true`, additionally trigger a one-shot glow/pulse animation,
 then clear the flag.
 
-═══════════════════════════════════════════════════════════════
 11. SIMULATION LOOP
-═══════════════════════════════════════════════════════════════
 - Drive via `requestAnimationFrame`. Compute `realDt` (seconds since last frame),
   convert to simulated hours: `dt_sim = (realDt/3600) × timeScale`.
 - If `dt_sim > 0.05`, sub-step: run the update in §4–§10 in chunks of ≤0.05
@@ -227,9 +203,7 @@ then clear the flag.
   frame, no discontinuity.
 - Pause freezes `simulatedTime` and all state; resume continues from exact state.
 
-═══════════════════════════════════════════════════════════════
 12. UI / SCREENS
-═══════════════════════════════════════════════════════════════
 1. **Onboarding** — gender, height, weight, bodyfat% inputs → compute profile
    constants → route to dashboard.
 2. **Main dashboard**
@@ -249,9 +223,7 @@ then clear the flag.
    (walk/run/gym/HIIT with editable kcal), confirm/cancel.
 5. Responsive: single column <640px, gauge + controls side-by-side above that.
 
-═══════════════════════════════════════════════════════════════
 13. INTERACTIVE FUNCTIONALITY (augmented)
-═══════════════════════════════════════════════════════════════
 - **Toast/alert notifications** on state transitions: glycogen fully depleted,
   ketosis onset (K crosses 10), autophagy onset (Auto crosses 10), overflow into
   fat storage (each overflowEvent), Fat reaching FatFloor. Debounce so repeated
@@ -280,43 +252,6 @@ then clear the flag.
   localStorage and a "Resume last session" prompt on load — off by default, not
   silent autosave.
 
-═══════════════════════════════════════════════════════════════
-14. EDGE CASES / VALIDATION
-═══════════════════════════════════════════════════════════════
-- Reject negative inputs; cap single-meal macro inputs at 300g each with inline
-  hints when exceeded.
-- Soft-warn (not block) if Move kcal exceeds a physiologically reasonable
-  ceiling for the given duration (e.g. > 20 kcal/min sustained).
-- `G` and `Fat` must never go negative; `Fat` respects `FatFloor` per §9.
-- If two Move actions would overlap, either queue the second after the first
-  completes or block starting a new one while `activeActivity` is active
-  (block is simpler — implement this for v1, flag queueing as a future
-  enhancement).
-
-═══════════════════════════════════════════════════════════════
-15. TESTING REQUIREMENTS
-═══════════════════════════════════════════════════════════════
-- Implement the simulation engine as an isolated module (e.g.
-  `useMetabolismSimulation` hook or a plain `simulateTick(state, dt, config)`
-  pure function) decoupled from rendering, so §4–§10 can be unit-tested
-  independently of the UI.
-- Include unit tests for: digestion buffer decay, overflow → fat conversion,
-  deficit → fat draw, activity fuel-mix split, ketosis onset/decay thresholds,
-  autophagy onset/decay + meal suppression, fat floor dampening.
-
-═══════════════════════════════════════════════════════════════
-16. DELIVERABLE
-═══════════════════════════════════════════════════════════════
-A working single-page app matching the screens in §12, with all interactive
-functionality from §13, built on the exact formulas in §4–§10, with tunable
-constants centralized in `config.ts` and the simulation engine unit-tested per
-§15.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
 git clone <this-repository-url>
 cd <repository-name>
 npm i
