@@ -140,7 +140,10 @@ export function Dashboard({ sim }: { sim: Sim }) {
             baseBodyFat={profile.bodyfatPct}
             overflowPulse={state.overflowEvent}
             reducedMotion={reducedMotion}
+            tuning={tuning}
+            showRegions={showRegions}
           />
+
           <dl className="mt-3 grid grid-cols-4 gap-2 text-center">
             {[
               ["Glycogen", `${Math.round(state.G)} kcal`],
