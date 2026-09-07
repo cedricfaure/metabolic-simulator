@@ -349,7 +349,7 @@ export function BodySilhouette({
                     />
                   ))}
                   <text
-                    x={50 + r.half + 2}
+                    x={50 + Math.max(r.half, metrics.shoulder * 0.92) + 2.5}
                     y={r.y - 1}
                     fontSize="3.6"
                     className="numeric"
@@ -358,7 +358,7 @@ export function BodySilhouette({
                     {r.label} {(r.half * 2).toFixed(1)}
                   </text>
                   <text
-                    x={50 + r.half + 2}
+                    x={50 + Math.max(r.half, metrics.shoulder * 0.92) + 2.5}
                     y={r.y + 3}
                     fontSize="3.2"
                     className="numeric"
