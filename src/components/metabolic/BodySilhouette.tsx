@@ -146,6 +146,8 @@ interface Props {
   baseBodyFat: number;
   overflowPulse: boolean;
   reducedMotion: boolean;
+  tuning?: ShapeTuning;
+  showRegions?: boolean;
 }
 
 export function BodySilhouette({
@@ -155,6 +157,8 @@ export function BodySilhouette({
   baseBodyFat,
   overflowPulse,
   reducedMotion,
+  tuning = DEFAULT_TUNING,
+  showRegions = false,
 }: Props) {
   const [pulseKey, setPulseKey] = useState(0);
   useEffect(() => {
@@ -163,17 +167,65 @@ export function BodySilhouette({
 
   const pct = Math.round(fillRatio * 100);
 
-  const shape = useMemo(() => {
-    const m = metricsFor(gender, bodyFat);
-    return { body: bodyPath(m), head: headPath(m), armR: armPath(m, 1), armL: armPath(m, -1) };
-  }, [gender, bodyFat]);
+  const metrics = useMemo(() => metricsFor(gender, bodyFat, tuning), [gender, bodyFat, tuning]);
+  const baseMetrics = useMemo(
+    () => metricsFor(gender, baseBodyFat, tuning),
+    [gender, baseBodyFat, tuning],
+  );
 
-  const ghost = useMemo(() => {
-    const m = metricsFor(gender, baseBodyFat);
-    return { body: bodyPath(m), head: headPath(m), armR: armPath(m, 1), armL: armPath(m, -1) };
-  }, [gender, baseBodyFat]);
+  const shape = useMemo(
+    () => ({
+      body: bodyPath(metrics),
+      head: headPath(metrics),
+      armR: armPath(metrics, 1),
+      armL: armPath(metrics, -1),
+    }),
+    [metrics],
+  );
+
+  const ghost = useMemo(
+    () => ({
+      body: bodyPath(baseMetrics),
+      head: headPath(baseMetrics),
+      armR: armPath(baseMetrics, 1),
+      armL: armPath(baseMetrics, -1),
+    }),
+    [baseMetrics],
+  );
+
+  const regions = useMemo(() => {
+    const legAxis = metrics.hip * 0.42;
+    const baseLegAxis = baseMetrics.hip * 0.42;
+    return [
+      {
+        key: "waist",
+        label: "Waist",
+        y: 54,
+        half: metrics.waist,
+        baseHalf: baseMetrics.waist,
+        color: "var(--energy)",
+      },
+      {
+        key: "hip",
+        label: "Hip",
+        y: 67,
+        half: metrics.hip,
+        baseHalf: baseMetrics.hip,
+        color: "var(--ketosis)",
+      },
+      {
+        key: "thigh",
+        label: "Thigh",
+        y: 84,
+        half: legAxis + metrics.thigh,
+        baseHalf: baseLegAxis + baseMetrics.thigh,
+        color: "var(--autophagy)",
+      },
+    ];
+  }, [metrics, baseMetrics]);
 
   const ghostVisible = Math.abs(bodyFat - baseBodyFat) > 0.15;
+
 
   return (
     <div
