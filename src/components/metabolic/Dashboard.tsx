@@ -70,7 +70,10 @@ export function Dashboard({ sim }: { sim: Sim }) {
     totalKcal: number;
   } | null>(null);
   const [debug, setDebug] = useState(false);
+  const [tuning, setTuning] = useState<ShapeTuning>(DEFAULT_TUNING);
+  const [showRegions, setShowRegions] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
+
 
   useEffect(() => {
     setDebug(new URLSearchParams(window.location.search).get("debug") === "1");
