@@ -311,7 +311,70 @@ export function BodySilhouette({
             strokeWidth="0.9"
           />
         ))}
+
+        {/* Region measurement overlay */}
+        {showRegions && (
+          <g>
+            {regions.map((r) => {
+              const delta = r.baseHalf > 0 ? ((r.half - r.baseHalf) / r.baseHalf) * 100 : 0;
+              return (
+                <g key={r.key}>
+                  <line
+                    x1={50 - r.baseHalf}
+                    x2={50 + r.baseHalf}
+                    y1={r.y}
+                    y2={r.y}
+                    stroke={r.color}
+                    strokeOpacity="0.35"
+                    strokeWidth="0.6"
+                    strokeDasharray="1.6 1.4"
+                  />
+                  <line
+                    x1={50 - r.half}
+                    x2={50 + r.half}
+                    y1={r.y}
+                    y2={r.y}
+                    stroke={r.color}
+                    strokeWidth="1"
+                  />
+                  {[-1, 1].map((s) => (
+                    <line
+                      key={s}
+                      x1={50 + s * r.half}
+                      x2={50 + s * r.half}
+                      y1={r.y - 1.8}
+                      y2={r.y + 1.8}
+                      stroke={r.color}
+                      strokeWidth="1"
+                    />
+                  ))}
+                  <text
+                    x={50 + r.half + 2}
+                    y={r.y - 1}
+                    fontSize="3.6"
+                    className="numeric"
+                    fill={r.color}
+                  >
+                    {r.label} {(r.half * 2).toFixed(1)}
+                  </text>
+                  <text
+                    x={50 + r.half + 2}
+                    y={r.y + 3}
+                    fontSize="3.2"
+                    className="numeric"
+                    fill={r.color}
+                    fillOpacity="0.75"
+                  >
+                    {delta >= 0 ? "+" : ""}
+                    {delta.toFixed(1)}%
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
       </svg>
+
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center">
         <span className="numeric text-5xl font-semibold text-foreground drop-shadow-lg">{pct}%</span>
