@@ -16,7 +16,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { TIME_SCALES, type TimeScale } from "@/lib/metabolism/config";
 import { bodyFatPercent, burnRate, type FeedInput } from "@/lib/metabolism/engine";
 import type { useMetabolismSimulation } from "@/hooks/useMetabolismSimulation";
-import { BodySilhouette } from "./BodySilhouette";
+import { BodySilhouette, DEFAULT_TUNING, type ShapeTuning } from "./BodySilhouette";
+import { ShapeControls } from "./ShapeControls";
+
 import { SignalGauge } from "./SignalGauge";
 import { BurnRateGauge } from "./BurnRateGauge";
 import { Sparkline } from "./Sparkline";
