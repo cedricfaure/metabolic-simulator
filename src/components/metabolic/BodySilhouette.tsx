@@ -39,15 +39,26 @@ const BASE: Record<Gender, Metrics> = {
   female: { neck: 4.0, shoulder: 15.6, chest: 11.6, waist: 9.6, hip: 14.6, thigh: 7.2, knee: 4.4, calf: 5.0, ankle: 2.7, arm: 3.5, head: 6.0 },
 };
 
+export interface ShapeTuning {
+  /** Overall fat-to-width mapping strength (1 = default). */
+  strength: number;
+  /** Extra weighting of waist response. */
+  waistWeight: number;
+  /** Extra weighting of hip/thigh response. */
+  hipWeight: number;
+}
+
+export const DEFAULT_TUNING: ShapeTuning = { strength: 1, waistWeight: 1, hipWeight: 1 };
+
 /** Gradual, region-weighted response to body-fat %. Reference physique = 18%. */
-function metricsFor(gender: Gender, bf: number): Metrics {
+function metricsFor(gender: Gender, bf: number, t: ShapeTuning = DEFAULT_TUNING): Metrics {
   const b = BASE[gender];
-  const d = (bf - 18) / 100;
+  const d = ((bf - 18) / 100) * t.strength;
   const g = (k: number) => 1 + d * k;
   // Female fat deposits more on hips/thighs, male more on waist.
-  const waistK = gender === "male" ? 2.5 : 1.9;
-  const hipK = gender === "male" ? 1.3 : 2.0;
-  const thighK = gender === "male" ? 1.1 : 1.8;
+  const waistK = (gender === "male" ? 2.5 : 1.9) * t.waistWeight;
+  const hipK = (gender === "male" ? 1.3 : 2.0) * t.hipWeight;
+  const thighK = (gender === "male" ? 1.1 : 1.8) * t.hipWeight;
   return {
     neck: b.neck * g(0.5),
     shoulder: b.shoulder * g(0.45),
@@ -62,6 +73,7 @@ function metricsFor(gender: Gender, bf: number): Metrics {
     head: b.head,
   };
 }
+
 
 /** Head + torso + legs as one smooth closed outline (x mirrored around 50). */
 function bodyPath(m: Metrics): string {
@@ -134,6 +146,8 @@ interface Props {
   baseBodyFat: number;
   overflowPulse: boolean;
   reducedMotion: boolean;
+  tuning?: ShapeTuning;
+  showRegions?: boolean;
 }
 
 export function BodySilhouette({
@@ -143,6 +157,8 @@ export function BodySilhouette({
   baseBodyFat,
   overflowPulse,
   reducedMotion,
+  tuning = DEFAULT_TUNING,
+  showRegions = false,
 }: Props) {
   const [pulseKey, setPulseKey] = useState(0);
   useEffect(() => {
@@ -151,17 +167,65 @@ export function BodySilhouette({
 
   const pct = Math.round(fillRatio * 100);
 
-  const shape = useMemo(() => {
-    const m = metricsFor(gender, bodyFat);
-    return { body: bodyPath(m), head: headPath(m), armR: armPath(m, 1), armL: armPath(m, -1) };
-  }, [gender, bodyFat]);
+  const metrics = useMemo(() => metricsFor(gender, bodyFat, tuning), [gender, bodyFat, tuning]);
+  const baseMetrics = useMemo(
+    () => metricsFor(gender, baseBodyFat, tuning),
+    [gender, baseBodyFat, tuning],
+  );
 
-  const ghost = useMemo(() => {
-    const m = metricsFor(gender, baseBodyFat);
-    return { body: bodyPath(m), head: headPath(m), armR: armPath(m, 1), armL: armPath(m, -1) };
-  }, [gender, baseBodyFat]);
+  const shape = useMemo(
+    () => ({
+      body: bodyPath(metrics),
+      head: headPath(metrics),
+      armR: armPath(metrics, 1),
+      armL: armPath(metrics, -1),
+    }),
+    [metrics],
+  );
+
+  const ghost = useMemo(
+    () => ({
+      body: bodyPath(baseMetrics),
+      head: headPath(baseMetrics),
+      armR: armPath(baseMetrics, 1),
+      armL: armPath(baseMetrics, -1),
+    }),
+    [baseMetrics],
+  );
+
+  const regions = useMemo(() => {
+    const legAxis = metrics.hip * 0.42;
+    const baseLegAxis = baseMetrics.hip * 0.42;
+    return [
+      {
+        key: "waist",
+        label: "Waist",
+        y: 54,
+        half: metrics.waist,
+        baseHalf: baseMetrics.waist,
+        color: "var(--energy)",
+      },
+      {
+        key: "hip",
+        label: "Hip",
+        y: 67,
+        half: metrics.hip,
+        baseHalf: baseMetrics.hip,
+        color: "var(--ketosis)",
+      },
+      {
+        key: "thigh",
+        label: "Thigh",
+        y: 84,
+        half: legAxis + metrics.thigh,
+        baseHalf: baseLegAxis + baseMetrics.thigh,
+        color: "var(--autophagy)",
+      },
+    ];
+  }, [metrics, baseMetrics]);
 
   const ghostVisible = Math.abs(bodyFat - baseBodyFat) > 0.15;
+
 
   return (
     <div
@@ -247,7 +311,70 @@ export function BodySilhouette({
             strokeWidth="0.9"
           />
         ))}
+
+        {/* Region measurement overlay */}
+        {showRegions && (
+          <g>
+            {regions.map((r) => {
+              const delta = r.baseHalf > 0 ? ((r.half - r.baseHalf) / r.baseHalf) * 100 : 0;
+              return (
+                <g key={r.key}>
+                  <line
+                    x1={50 - r.baseHalf}
+                    x2={50 + r.baseHalf}
+                    y1={r.y}
+                    y2={r.y}
+                    stroke={r.color}
+                    strokeOpacity="0.35"
+                    strokeWidth="0.6"
+                    strokeDasharray="1.6 1.4"
+                  />
+                  <line
+                    x1={50 - r.half}
+                    x2={50 + r.half}
+                    y1={r.y}
+                    y2={r.y}
+                    stroke={r.color}
+                    strokeWidth="1"
+                  />
+                  {[-1, 1].map((s) => (
+                    <line
+                      key={s}
+                      x1={50 + s * r.half}
+                      x2={50 + s * r.half}
+                      y1={r.y - 1.8}
+                      y2={r.y + 1.8}
+                      stroke={r.color}
+                      strokeWidth="1"
+                    />
+                  ))}
+                  <text
+                    x={50 + Math.max(r.half, metrics.shoulder * 0.92) + 2.5}
+                    y={r.y - 1}
+                    fontSize="3.6"
+                    className="numeric"
+                    fill={r.color}
+                  >
+                    {r.label} {(r.half * 2).toFixed(1)}
+                  </text>
+                  <text
+                    x={50 + Math.max(r.half, metrics.shoulder * 0.92) + 2.5}
+                    y={r.y + 3}
+                    fontSize="3.2"
+                    className="numeric"
+                    fill={r.color}
+                    fillOpacity="0.75"
+                  >
+                    {delta >= 0 ? "+" : ""}
+                    {delta.toFixed(1)}%
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
       </svg>
+
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center">
         <span className="numeric text-5xl font-semibold text-foreground drop-shadow-lg">{pct}%</span>

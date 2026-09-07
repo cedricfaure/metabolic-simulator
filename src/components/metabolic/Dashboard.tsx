@@ -16,7 +16,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { TIME_SCALES, type TimeScale } from "@/lib/metabolism/config";
 import { bodyFatPercent, burnRate, type FeedInput } from "@/lib/metabolism/engine";
 import type { useMetabolismSimulation } from "@/hooks/useMetabolismSimulation";
-import { BodySilhouette } from "./BodySilhouette";
+import { BodySilhouette, DEFAULT_TUNING, type ShapeTuning } from "./BodySilhouette";
+import { ShapeControls } from "./ShapeControls";
+
 import { SignalGauge } from "./SignalGauge";
 import { BurnRateGauge } from "./BurnRateGauge";
 import { Sparkline } from "./Sparkline";
@@ -68,7 +70,10 @@ export function Dashboard({ sim }: { sim: Sim }) {
     totalKcal: number;
   } | null>(null);
   const [debug, setDebug] = useState(false);
+  const [tuning, setTuning] = useState<ShapeTuning>(DEFAULT_TUNING);
+  const [showRegions, setShowRegions] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
+
 
   useEffect(() => {
     setDebug(new URLSearchParams(window.location.search).get("debug") === "1");
@@ -135,7 +140,10 @@ export function Dashboard({ sim }: { sim: Sim }) {
             baseBodyFat={profile.bodyfatPct}
             overflowPulse={state.overflowEvent}
             reducedMotion={reducedMotion}
+            tuning={tuning}
+            showRegions={showRegions}
           />
+
           <dl className="mt-3 grid grid-cols-4 gap-2 text-center">
             {[
               ["Glycogen", `${Math.round(state.G)} kcal`],
@@ -281,6 +289,15 @@ export function Dashboard({ sim }: { sim: Sim }) {
               />
             </CollapsibleContent>
           </Collapsible>
+
+          <ShapeControls
+            tuning={tuning}
+            onTuningChange={setTuning}
+            showRegions={showRegions}
+            onShowRegionsChange={setShowRegions}
+          />
+
+
 
           <BurnRateGauge
             restingPerHour={burn.restingPerHour}
